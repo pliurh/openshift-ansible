@@ -244,11 +244,13 @@
         data:
           broker-config: |
             registry:
-              name: "{{ ansible_service_broker_registry_type }}"
-              url:  "{{ ansible_service_broker_registry_url }}"
-              user: "{{ ansible_service_broker_registry_user }}"
-              pass: "{{ ansible_service_broker_registry_password }}"
-              org:  "{{ ansible_service_broker_registry_organization }}"
+              - type: "dockerhub"
+                name: "{{ ansible_service_broker_registry_type }}"
+                url:  "{{ ansible_service_broker_registry_url }}"
+                user: "{{ ansible_service_broker_registry_user }}"
+                pass: "{{ ansible_service_broker_registry_password }}"
+                org:  "{{ ansible_service_broker_registry_organization }}"
+                tag: "latest"
             dao:
               etcd_host: etcd
               etcd_port: 2379
@@ -260,10 +262,16 @@
             openshift: {}
             broker:
               dev_broker: {{ ansible_service_broker_dev_broker | bool | lower }}
-              launch_apb_on_bind: {{ ansible_service_broker_launch_apb_on_bind | bool | lower }}
-              recovery: {{ ansible_service_broker_recovery | bool | lower }}
-              output_request: {{ ansible_service_broker_output_request | bool | lower }}
               bootstrap_on_startup: {{ ansible_service_broker_bootstrap_on_startup | bool | lower }}
+              refresh_interval: "600s"
+              launch_apb_on_bind: {{ ansible_service_broker_launch_apb_on_bind | bool | lower }}
+              output_request: {{ ansible_service_broker_output_request | bool | lower }}
+              recovery: {{ ansible_service_broker_recovery | bool | lower }}
+              # ssl_cert_key: /etc/tls/private/tls.key
+              # ssl_cert: /etc/tls/private/tls.crt
+              # auth:
+              #  - type: basic
+              #    enabled: false
 
 - name: Create the Broker resource in the catalog
   oc_obj:
