@@ -110,6 +110,7 @@
           resources:
             requests:
               storage: 1Gi
+          storageClassName: glusterfs-storage
 
 - name: create etcd deployment
   oc_obj:
