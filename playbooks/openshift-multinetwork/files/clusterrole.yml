@@ -1,0 +1,19 @@
+---
+# oc create clusterrolebinding threeten-node1.test.example.com \
+#    --clusterrole=multus-crd-overpowered \
+#    --user=system:node:threeten-node1.test.example.com
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: multus-crd-overpowered
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - '*'
