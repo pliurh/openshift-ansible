@@ -27,13 +27,13 @@ Firstly, use an inventory file such as:
 ```
 # Last known working @ openshift-ansible commit
 # [root@droctagon3 openshift-ansible]# git describe
-# openshift-ansible-3.10.0-0.63.0-98-g7a136e9
+# openshift-ansible-3.4.15-1-9160-ge98e49f
 # [root@droctagon3 openshift-ansible]# git rev-parse HEAD
-# 7a136e99c33927a00f2f3a58b2de5e170e880252
+# da7282dd6bd3f385444345d23048f725b1932a69
 
-threeten-infra.test.example.com ansible_host=192.168.1.140
-threeten-master.test.example.com ansible_host=192.168.1.225
-threeten-node1.test.example.com ansible_host=192.168.1.32
+threeten-infra.test.example.com ansible_host=192.168.1.230
+threeten-master.test.example.com ansible_host=192.168.1.18
+threeten-node1.test.example.com ansible_host=192.168.1.69
 
 [masters]
 threeten-master.test.example.com
@@ -52,6 +52,8 @@ nodes
 etcd
 
 [OSEv3:vars]
+openshift_release="3.10"
+openshift_install_examples=false
 openshift_deployment_type=origin
 openshift_master_default_subdomain=apps.test.example.com
 openshift_master_cluster_hostname=threeten-master.test.example.com
