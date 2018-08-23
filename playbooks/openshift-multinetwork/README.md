@@ -20,20 +20,18 @@ Some elements are work-arounds to account for gaps that otherwise need to be fil
 
 ## Giving it a whirl!
 
-This assumes 3 CentOS atomic Hosts.
-
-Firstly, use an inventory file such as:
+Firstly, deploy a cluster, in testing an inventory file was used as such:
 
 ```
 # Last known working @ openshift-ansible commit
 # [root@droctagon3 openshift-ansible]# git describe
-# openshift-ansible-3.4.15-1-9160-ge98e49f
+# openshift-ansible-3.10.0-0.63.0-98-g7a136e9
 # [root@droctagon3 openshift-ansible]# git rev-parse HEAD
-# da7282dd6bd3f385444345d23048f725b1932a69
+# 7a136e99c33927a00f2f3a58b2de5e170e880252
 
-threeten-infra.test.example.com ansible_host=192.168.1.230
-threeten-master.test.example.com ansible_host=192.168.1.18
-threeten-node1.test.example.com ansible_host=192.168.1.69
+threeten-infra.test.example.com ansible_host=192.168.1.96
+threeten-master.test.example.com ansible_host=192.168.1.224
+threeten-node1.test.example.com ansible_host=192.168.1.109
 
 [masters]
 threeten-master.test.example.com
@@ -43,8 +41,9 @@ threeten-master.test.example.com
 
 [nodes]
 threeten-master.test.example.com openshift_node_group_name="node-config-master"
-threeten-infra.test.example.com openshift_node_group_name="node-config-infra"
+threeten-infra.test.example.com openshift_node_group_name="node-config-infra" openshift_node_labels="{'region': 'infra', 'zone': 'default'}"
 threeten-node1.test.example.com openshift_node_group_name="node-config-compute"
+
 
 [OSEv3:children]
 masters
@@ -52,6 +51,11 @@ nodes
 etcd
 
 [OSEv3:vars]
+# This is a hack...
+# From: https://github.com/openshift/openshift-ansible/issues/7975#issuecomment-384268516
+# openshift_web_console_nodeselector={'region':'infra'}
+
+# Regularly used...
 openshift_release="3.10"
 openshift_install_examples=false
 openshift_deployment_type=origin
@@ -61,15 +65,12 @@ openshift_disable_check=disk_availability,memory_availability
 openshift_enable_docker_excluder=False
 # get the latest base url with: 
 # $ curl https://storage.googleapis.com/origin-ci-test/releases/openshift/origin/release-3.10/.latest-rpms
-openshift_additional_repos=[{'id': 'openshift-origin-ci', 'name': 'OpenShift-Origin-CI-repostory--caution-not-release', 'baseurl': 'https://storage.googleapis.com/origin-ci-test/logs/test_branch_origin_extended_conformance_gce_310/23/artifacts/rpms', 'enabled': 1, 'gpgcheck': 0}]
+# openshift_additional_repos=[{'id': 'openshift-origin-ci', 'name': 'OpenShift-Origin-CI-repostory--caution-not-release', 'baseurl': 'https://storage.googleapis.com/origin-ci-test/logs/test_branch_origin_extended_conformance_gce_310/23/artifacts/rpms', 'enabled': 1, 'gpgcheck': 0}]
 debug_level=2
 ansible_ssh_user=centos
 ansible_become=yes
-debug_level=2
 ansible_ssh_private_key_file=/root/.ssh/id_vm_rsa
 ```
-
-*NOTE*: The additional repos may need to be updated periodically. You can get the base URL by curl'ing https://storage.googleapis.com/origin-ci-test/releases/openshift/origin/release-3.10/.latest-rpms
 
 Then run openshift-ansible like:
 
@@ -77,50 +78,55 @@ Then run openshift-ansible like:
 $ ansible-playbook -i inventory/above.inventory playbooks/prerequisites.yml playbooks/deploy_cluster.yml playbooks/openshift-multinetwork/config.yml
 ```
 
+If you have an existing cluster, you may just run the multi-network playbook, i.e.
+
+```
+$ ansible-playbook -i inventory/above.inventory playbooks/openshift-multinetwork/config.yml
+```
+
 Log into your master and check that it generally looks OK. Then, you'll need to create an addition config, in this case we create a macvlan config.
 
 ```
-$ cat <<EOF | kubectl create -f -
-apiVersion: "kubernetes.cni.cncf.io/v1"
-kind: Network
+cat <<EOF | kubectl create -f -
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
 metadata:
   name: macvlan-conf
 spec: 
   config: '{
-            "cniVersion": "0.3.0",
-            "type": "macvlan",
-            "master": "eth0",
-            "mode": "bridge",
-            "ipam": {
-                "type": "host-local",
-                "subnet": "192.168.1.0/24",
-                "rangeStart": "192.168.1.200",
-                "rangeEnd": "192.168.1.216",
-                "routes": [
-                    { "dst": "0.0.0.0/0" }
-                ],
-                "gateway": "192.168.1.1"
-            }
-        }'
+      "cniVersion": "0.3.0",
+      "type": "macvlan",
+      "master": "eth0",
+      "mode": "bridge",
+      "ipam": {
+        "type": "host-local",
+        "subnet": "192.168.1.0/24",
+        "rangeStart": "192.168.1.200",
+        "rangeEnd": "192.168.1.216",
+        "routes": [
+          { "dst": "0.0.0.0/0" }
+        ],
+        "gateway": "192.168.1.1"
+      }
+    }'
 EOF
 ```
 
 Create an example pod.
 
 ```
-$ cat <<EOF | kubectl create -f -
+cat <<EOF | kubectl create -f -
 apiVersion: v1
 kind: Pod
 metadata:
-  name: bothpod
+  name: samplepod
   annotations:
-    kubernetes.v1.cni.cncf.io/networks: macvlan-conf
+    k8s.v1.cni.cncf.io/networks: macvlan-conf
 spec:
   containers:
-  - name: bothpod
-    image: dougbtv/nginx-toolbox
-    ports:
-    - containerPort: 8080
+  - name: samplepod
+    command: ["/bin/bash", "-c", "sleep 2000000000000"]
+    image: dougbtv/centos-network
 EOF
 ```
 
@@ -128,11 +134,11 @@ Watch it come up...
 
 ```
 $ watch -n1 oc get pods -o wide
-$ watch -n1 oc describe pod bothpod
+$ watch -n1 oc describe pod samplepod
 ```
 
 And then you should be able to verify that there's multiple interfaces in the pod...
 
 ```
-$ oc exec -it bothpod -- ip a
+$ oc exec -it samplepod -- ip a
 ```

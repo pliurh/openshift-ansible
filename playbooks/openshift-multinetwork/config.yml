@@ -1,10 +1,5 @@
 - import_playbook: ../init/main.yml
 
-# Hrmmm.... maybe more like this... but how to query for a partial pod name...
-# or a different pod?
-# docker-registry-1-mfv48
-# master-controllers-threeten-master.test.example.com
-
 - name: Pre-pull Multus image
   hosts: all
   tasks:
@@ -32,34 +27,12 @@
   hosts: all
   gather_facts: false
   tasks:
-  # - name: Create temp directory for downloading CNI plugins
-  #   command: mktemp -d /tmp/openshift-multinetwork-cniplugins-XXXXXX
-  #   register: mktemp
-  #   changed_when: False
 
   - name: Unarchive base CNI plugins tarball
     unarchive:
       src: https://github.com/containernetworking/plugins/releases/download/v0.7.1/cni-plugins-amd64-v0.7.1.tgz
       dest: "/opt/cni/bin/"
       remote_src: yes
-
-  # - name: Unarchive Multus tarball
-  #   unarchive:
-  #     src: https://github.com/intel/multus-cni/releases/download/v2.0/multus-cni_v2.0_linux_amd64.tar.gz
-  #     dest: "{{ mktemp.stdout }}"
-  #     remote_src: yes
-
-  # - name: Copy Multus binary into place
-  #   copy:
-  #     remote_src: true
-  #     src: "{{ mktemp.stdout }}/multus-cni_v2.0_linux_amd64/multus-cni"
-  #     mode: 0755
-  #     dest: "/opt/cni/bin/multus"
-
-  # - name: Create CNI configuration
-  #   copy:
-  #     src: "files/70-openshift-multinetwork.conf"
-  #     dest: "/etc/cni/net.d/70-openshift-multinetwork.conf"
 
 - name: Multi-network -- Kubernetes Object setup
   hosts: oo_first_master
@@ -85,40 +58,3 @@
     shell: >
       oc create -f {{ mktemp.stdout }}/multus-daemonset.yml
     when: "'multus' not in all_pods.stdout"
-
-
-  # - name: Load CRD via oc
-  #   oc_obj:
-  #     state: present
-  #     namespace: "kube-system"
-  #     kind: CustomResourceDefinition
-  #     name: networks.kubernetes.cni.cncf.io
-  #     files:
-  #       - "{{ mktemp.stdout }}/crd.yml"
-
-  # - name: Load cluster role
-  #   oc_obj:
-  #     state: present
-  #     namespace: "kube-system"
-  #     kind: ClusterRole
-  #     name: multus-crd-overpowered
-  #     files:
-  #       - "{{ mktemp.stdout }}/clusterrole.yml"
-
-  # - name: "Bind each system:node user to Multus overpowered role"
-  #   oc_adm_policy_user:
-  #     state: present
-  #     resource_kind: cluster-role
-  #     resource_name: multus-crd-overpowered
-  #     user: "system:node:{{ hostvars[item]['inventory_hostname'] }}"
-  #   with_items: "{{ groups['nodes'] | unique }}"
-
-  # This didn't work and may not be too too valuable, skipping for now.
-  # - name: Load macvlan CRD object via oc
-  #   oc_obj:
-  #     state: present
-  #     namespace: "kube-system"
-  #     kind: Network
-  #     name: macvlan-conf
-  #     files:
-  #       - "{{ mktemp.stdout }}/macvlan.yml"
