@@ -84,6 +84,22 @@ If you have an existing cluster, you may just run the multi-network playbook, i.
 $ ansible-playbook -i inventory/above.inventory playbooks/openshift-multinetwork/config.yml
 ```
 
+If you want use this playbook on a 3.9 cluster, there are some extra steps before running the multi-network playbook.
+
+1. Create openshift-sdn namespace.
+
+   ```
+   $ oc create namespaces openshift-sdn
+   ```
+
+2. Copy playbooks/openshift-multinetwork to your openshift-ansible 3.9 folder. Remove the task "Wait for a ready pod before starting..." from playbooks/openshift-multinetwork/config.yml
+
+3. Add service account multus to the privileged scc
+
+   ```
+   $ oc patch scc privileged  --type json  --patch '[{ "op": "add", "path": "/users/0", "value": "system:serviceaccount:openshift-sdn:multus" }]'
+   ``` 
+
 Log into your master and check that it generally looks OK. Then, you'll need to create an addition config, in this case we create a macvlan config.
 
 ```
